@@ -7,6 +7,8 @@ const { name } = require("ejs");
 const encrypt = require('mongoose-encryption');
 const app = express();
 var md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 // connecting to mongoose
 mongoose.connect('mongodb+srv://felixanderson500:Life%401998@atlascluster.2rtpa.mongodb.net/wikiDb', {
@@ -46,17 +48,22 @@ app.route("/login")
     })
     .post(function (req, res) {
         const username = req.body.username;
-        const password = md5(req.body.password);
+        const password = req.body.password;
 
         User.findOne({ email: username }, function (err, foundUser) {
             if (err) {
                 console.log(err);
             } else {
-                if (foundUser.password === password) {
-                    res.render("secrets");
-                } else {
-                    console.log("wrong password");
-                }
+
+                bcrypt.compare(password, foundUser.password, function (err, result) {
+                    if (result == true) {
+                        res.render("secrets");
+                    } else {
+                        console.log("wrong password");
+                    }
+                });
+
+
             }
         });
     });
@@ -66,19 +73,25 @@ app.route("/register")
         res.render("register");
     })
     .post(function (req, res) {
-        const newUser = new User({
-            email: req.body.username,
-            password: md5(req.body.password)
-        });
-        newUser.save(function (err) {
-            if (err) {
-                console.log(err);
-            } else {
-                res.render("secrets");
-            }
-        });
-    });
 
+        bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+            // Store hash in your password DB.
+            const newUser = new User({
+                email: req.body.username,
+                password: hash
+            });
+
+            newUser.save(function (err) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    res.render("secrets");
+                }
+            });
+
+        });
+
+    });
 
 
 const PORT = process.env.PORT || 3000;
@@ -86,4 +99,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
     console.log("Server started on port 3000");
 });
-
